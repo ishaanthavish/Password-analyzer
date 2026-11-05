@@ -1,0 +1,8 @@
+flask==3.0.3
+flask-cors==4.0.1
+zxcvbn==4.4.28
+
+# ── Development / testing dependencies ───────────────────────────────────────
+# Install with: py -m pip install -r requirements.txt
+# pytest is only needed to run the test suite; it is not required at runtime.
+pytest>=8.0

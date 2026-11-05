@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ishaanus – Password Security Analyzer</title>
+  <meta name="description" content="Analyze your password strength with Ishaanus — a premium cybersecurity tool powered by zxcvbn. Get entropy scores, crack-time estimates, and actionable security tips." />
+  <meta name="theme-color" content="#040d1a" />
+
+  <!--
+    Fonts are served locally from frontend/fonts/ (WOFF2).
+    No external network calls are made by this page.
+  -->
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ── Animated Background ────────────────────────────────────────────── -->
+  <div class="bg-canvas" aria-hidden="true">
+    <div class="bg-grid"></div>
+  </div>
+
+  <!-- ── Main App Wrapper ───────────────────────────────────────────────── -->
+  <div class="app-wrapper">
+    <div class="container">
+
+      <!-- ── Header ───────────────────────────────────────────────────── -->
+      <header>
+        <div class="logo-row">
+          <div class="logo-icon" aria-hidden="true">🔐</div>
+          <h1>Ishaanus</h1>
+        </div>
+        <p class="tagline">Password Security Analyzer &nbsp;·&nbsp; Powered by zxcvbn &amp; entropy analysis</p>
+      </header>
+
+      <!-- ── Privacy Banner ────────────────────────────────────────────── -->
+      <div class="privacy-banner" role="note">
+        <span class="privacy-icon">🛡️</span>
+        <p class="privacy-text">
+          <strong>Your password never leaves your machine.</strong>
+          Sent only to your local Flask server (127.0.0.1:5000) — never to any
+          external service. Fonts are locally hosted. No external network calls.
+        </p>
+      </div>
+
+      <!-- ── Input Card ─────────────────────────────────────────────────── -->
+      <div class="glass-card" style="animation-delay: 0.1s">
+        <p class="section-label">Password Input</p>
+
+        <div class="input-wrapper">
+          <input
+            type="password"
+            id="password-input"
+            placeholder="Type or paste your password here…"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Password to analyze"
+          />
+          <!-- Show / Hide toggle -->
+          <button
+            class="toggle-btn"
+            id="toggle-btn"
+            type="button"
+            aria-label="Toggle password visibility"
+            title="Show / hide password"
+          >
+            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Spinner shown during API call -->
+        <div style="display:flex; align-items:center; margin-top:10px; min-height:24px;">
+          <span id="spinner" class="spinner" role="status" aria-label="Analyzing…"></span>
+        </div>
+
+        <!-- Error toast shown if backend is unreachable -->
+        <div id="error-toast" class="error-toast" role="alert">
+          ⚠ <span id="error-msg"></span>
+        </div>
+
+        <!-- ── Strength Meter ──────────────────────────────────────────── -->
+        <div class="strength-section">
+          <div class="strength-header">
+            <span class="strength-label-text">Password Strength</span>
+            <span id="strength-badge" role="status">—</span>
+          </div>
+          <!-- 5 segments for scores 0–4 -->
+          <div class="strength-bar-track" role="progressbar" aria-label="Password strength">
+            <div class="strength-segment s0"></div>
+            <div class="strength-segment s1"></div>
+            <div class="strength-segment s2"></div>
+            <div class="strength-segment s3"></div>
+            <div class="strength-segment s4"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Empty State (shown before any input) ────────────────────── -->
+      <div id="empty-state" class="glass-card" style="animation-delay:0.2s">
+        <div class="empty-state">
+          <span class="empty-icon">🔍</span>
+          Start typing your password above to see a full security analysis,
+          entropy score, estimated crack time, and personalized recommendations.
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           Results Section — hidden until a password is entered
+           ══════════════════════════════════════════════════════════════ -->
+      <div id="results-section">
+
+        <!-- ── Weak Password Alert ─────────────────────────────────── -->
+        <div id="weak-alert" class="alert-banner" role="alert">
+          <span class="alert-icon-wrap">⛔</span>
+          <div>
+            <p class="alert-title">Weak / Compromised Password Detected</p>
+            <p class="alert-desc" id="alert-desc"></p>
+          </div>
+        </div>
+
+        <!-- ── Stats Row ───────────────────────────────────────────── -->
+        <div class="glass-card" style="animation-delay:0.15s">
+          <p class="section-label">Analysis Summary</p>
+          <div class="stats-grid">
+
+            <div class="stat-card" title="Shannon + charset entropy in bits">
+              <span class="stat-icon">⚡</span>
+              <div class="stat-value" id="stat-entropy">—</div>
+              <div class="stat-title">Entropy (bits)</div>
+            </div>
+
+            <div class="stat-card" title="Total character count">
+              <span class="stat-icon">📏</span>
+              <div class="stat-value" id="stat-length">—</div>
+              <div class="stat-title">Length</div>
+            </div>
+
+            <div class="stat-card" title="Estimated time to crack online (throttled at 100/hr)">
+              <span class="stat-icon">⏱️</span>
+              <div class="stat-value" id="stat-crack-online" style="font-size:0.85rem">—</div>
+              <div class="stat-title">Online Crack</div>
+            </div>
+
+            <div class="stat-card" title="Complexity score 0–100%">
+              <span class="stat-icon">🎯</span>
+              <div class="stat-value" id="stat-score">—</div>
+              <div class="stat-title">Complexity</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Character Category Checks ──────────────────────────── -->
+        <div class="glass-card" style="animation-delay:0.2s">
+          <p class="section-label">Character Categories</p>
+          <div class="checks-grid">
+
+            <div class="check-item" id="check-upper">
+              <div class="check-icon">—</div>
+              <div>
+                <div class="check-label">Uppercase A–Z</div>
+                <div class="check-count" id="count-upper">—</div>
+              </div>
+            </div>
+
+            <div class="check-item" id="check-lower">
+              <div class="check-icon">—</div>
+              <div>
+                <div class="check-label">Lowercase a–z</div>
+                <div class="check-count" id="count-lower">—</div>
+              </div>
+            </div>
+
+            <div class="check-item" id="check-digit">
+              <div class="check-icon">—</div>
+              <div>
+                <div class="check-label">Numbers 0–9</div>
+                <div class="check-count" id="count-digit">—</div>
+              </div>
+            </div>
+
+            <div class="check-item" id="check-symbol">
+              <div class="check-icon">—</div>
+              <div>
+                <div class="check-label">Symbols !@#…</div>
+                <div class="check-count" id="count-symbol">—</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Crack Time Estimates ────────────────────────────────── -->
+        <div class="glass-card" style="animation-delay:0.25s">
+          <p class="section-label">Crack Time Estimates</p>
+          <p style="font-size:0.73rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">
+            Estimated via zxcvbn. Hover each card for the assumed attacker model.
+          </p>
+          <div class="crack-grid">
+
+            <div class="crack-item"
+                 title="Online attack, throttled to 100 guesses/hour (e.g. a login form with rate limiting and account lockout). Most real-world web services operate in this range.">
+              <div class="crack-scenario">Online (Throttled)</div>
+              <div class="crack-time" id="crack-throttle">—</div>
+            </div>
+
+            <div class="crack-item"
+                 title="Online attack, unthrottled at 10 guesses/second (e.g. a service with no rate limiting or lockout). Represents a poorly-secured login endpoint.">
+              <div class="crack-scenario">Online (No Throttle)</div>
+              <div class="crack-time" id="crack-no-throttle">—</div>
+            </div>
+
+            <div class="crack-item"
+                 title="Offline attack at 10,000 guesses/second against a slow hash (e.g. bcrypt, scrypt, Argon2 — the recommended algorithms). Assumes the attacker has stolen the hashed database.">
+              <div class="crack-scenario">Offline Slow Hash</div>
+              <div class="crack-time" id="crack-slow-hash">—</div>
+            </div>
+
+            <div class="crack-item"
+                 title="Offline attack at 10 billion guesses/second against a fast hash (e.g. MD5, SHA-1, unsalted SHA-256 — algorithms that should NOT be used for passwords). Represents a worst-case breach scenario.">
+              <div class="crack-scenario">Offline Fast Hash</div>
+              <div class="crack-time" id="crack-fast-hash">—</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Security Recommendations ───────────────────────────── -->
+        <div class="glass-card" style="animation-delay:0.3s">
+          <p class="section-label">Security Recommendations</p>
+          <ul id="recommendations-list" role="list" aria-label="Security recommendations"></ul>
+        </div>
+
+      </div>
+      <!-- ── /results-section ────────────────────────────────────────── -->
+
+    </div><!-- /container -->
+
+    <!-- ── Footer ─────────────────────────────────────────────────────── -->
+    <footer>
+      <p>Ishaanus Password Security Analyzer &nbsp;·&nbsp; Powered by
+        <a href="https://github.com/dropbox/zxcvbn" target="_blank" rel="noopener">zxcvbn</a>
+        &amp; Python Flask
+      </p>
+      <p style="margin-top:4px; font-size:0.7rem; opacity:0.6;">
+        🛡️ Runs entirely on your local machine — zero external data transmission
+      </p>
+    </footer>
+
+  </div><!-- /app-wrapper -->
+
+  <!-- ── Frontend logic ─────────────────────────────────────────────────── -->
+  <script src="js/app.js"></script>
+</body>
+</html>
